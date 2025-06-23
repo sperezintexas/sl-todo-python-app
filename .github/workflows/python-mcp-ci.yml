@@ -43,7 +43,7 @@ jobs:
     
     - name: Generate Session ID
       env:
-        SL_TOKEN: ${{ secrets.SL_TOKEN }}
+        SL_TOKEN: ${{ secrets.SL_TOKEN }}  # ✅ Correctly using GitHub secret
         SL_APP_NAME: ToDoAPI
         SL_BRANCH_NAME: main
         SL_BUILD_NAME: ${{ github.run_number }}
