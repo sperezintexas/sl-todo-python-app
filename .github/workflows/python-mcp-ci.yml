@@ -76,3 +76,44 @@ jobs:
         gcloud container images list-tags ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }} \
           --format='get(digest)' --filter='NOT tags:latest' --limit=5 | \
         xargs -I {} gcloud container images delete "${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}@{}" --quiet || true
+  teardown:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'teardown'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1'
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} --zone ${{ env.REGION }}
+
+      - name: Delete Kubernetes resources
+        run: |
+          kubectl delete service todo-app-service --ignore-not-found
+          kubectl delete deployment todo-app --ignore-not-found
+          echo "Kubernetes resources deleted"
+
+      - name: Delete Docker images
+        run: |
+          # Delete all images in the repository
+          gcloud container images list-tags ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }} \
+            --format='get(digest)' | \
+          xargs -I {} gcloud container images delete "${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}@{}" --quiet || true
+          echo "Docker images cleaned up"
+
+      - name: Delete Artifact Registry Repository (Optional)
+        run: |
+          # Uncomment the next line if you want to delete the entire repository
+          # gcloud artifacts repositories delete ${{ env.REPOSITORY }} --location=${{ env.REGION }} --quiet
+          echo "Repository cleanup skipped (uncomment to enable)"
