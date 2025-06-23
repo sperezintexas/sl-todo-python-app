@@ -161,6 +161,34 @@ jobs:
         kubectl apply -f k8s/deployment_generated.yaml
         kubectl rollout status deployment/todo-app
 
+    - name: Get Application URL
+      run: |
+        echo "Waiting for external IP to be assigned..."
+        
+        # Wait for external IP to be assigned (up to 5 minutes)
+        for i in {1..30}; do
+          EXTERNAL_IP=$(kubectl get service todo-app-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+          if [ -n "$EXTERNAL_IP" ] && [ "$EXTERNAL_IP" != "null" ]; then
+            echo "✅ Application deployed successfully!"
+            echo "🌐 External IP: $EXTERNAL_IP"
+            echo "🔗 Application URL: http://$EXTERNAL_IP"
+            echo ""
+            echo "You can now navigate to: http://$EXTERNAL_IP"
+            break
+          else
+            echo "Waiting for external IP... (attempt $i/30)"
+            sleep 10
+          fi
+        done
+        
+        if [ -z "$EXTERNAL_IP" ] || [ "$EXTERNAL_IP" = "null" ]; then
+          echo "⚠️  External IP not yet assigned. Check service status:"
+          kubectl get service todo-app-service
+          echo ""
+          echo "You can check the IP later with:"
+          echo "kubectl get service todo-app-service"
+        fi
+
     - name: Upload Test Results
       env:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
@@ -205,7 +233,7 @@ jobs:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@v1'
         with:
           project_id: ${{ env.PROJECT_ID }}
 
