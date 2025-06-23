@@ -48,7 +48,7 @@ jobs:
         echo "Generating Sealights session..."
         sl-python config \
           --token ${{ secrets.SL_TOKEN }} \
-          --appname "ToDoAPI" \
+          --appname "sl-todo-python-app" \
           --branchname "main" \
           --buildname "${{ github.run_number }}" \
           --buildSessionIdfile buildSessionId.txt \
