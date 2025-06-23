@@ -5,6 +5,16 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+        - deploy
+        - teardown
 
 env:
   PROJECT_ID: sl-todoapi-python
@@ -17,10 +27,50 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy')
     
     steps:
     - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install Sealights Agent
+      run: |
+        pip install sealights-python-agent
+    
+    - name: Generate Session ID
+      env:
+        SL_TOKEN: ${{ secrets.SL_TOKEN }}
+        SL_APP_NAME: ToDoAPI
+        SL_BRANCH_NAME: main
+        SL_BUILD_NAME: ${{ github.run_number }}
+        SL_WORKSPACE_PATH: .
+        SL_INCLUDE: "*.py"
+        SL_EXCLUDE: "tests/*"
+        SL_BUILDSESSIONID: todo-api-session-${{ github.run_number }}
+      run: sl-python config
+    
+    - name: Scan Build
+      env:
+        SL_TOKEN: ${{ secrets.SL_TOKEN }}
+        SL_BUILDSESSIONID: todo-api-session-${{ github.run_number }}
+        SL_SCM: git
+        SL_SCMPROVIDER: github
+        SL_SCMBASEURL: https://github.com/${{ github.repository }}
+      run: sl-python scan
+    
+    - name: Run Tests with Sealights
+      env:
+        SL_TOKEN: ${{ secrets.SL_TOKEN }}
+        SL_BUILDSESSIONID: todo-api-session-${{ github.run_number }}
+        SL_TEST_STAGE: "Unit Tests"
+      run: |
+        pip install -r requirements.txt
+        pip install pytest
+        sl-python pytest test_main.py --junitxml=test-results.xml
     
     - id: 'auth'
       name: 'Authenticate to Google Cloud'
@@ -55,6 +105,7 @@ jobs:
 
     - name: Get GKE credentials
       run: |
+        export USE_GKE_GCLOUD_AUTH_PLUGIN=True
         gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} --zone ${{ env.REGION }}
 
     - name: Build Docker image
@@ -75,11 +126,20 @@ jobs:
         kubectl apply -f k8s/deployment_generated.yaml
         kubectl rollout status deployment/todo-app
 
+    - name: Upload Test Results
+      env:
+        SL_TOKEN: ${{ secrets.SL_TOKEN }}
+        SL_BUILDSESSIONID: todo-api-session-${{ github.run_number }}
+      run: |
+        sl-python uploadReports --source=test-results.xml --reportType=junit
+      if: always()
+
     - name: Clean up old images
       run: |
         gcloud container images list-tags ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }} \
           --format='get(digest)' --filter='NOT tags:latest' --limit=5 | \
         xargs -I {} gcloud container images delete "${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}@{}" --quiet || true
+
   teardown:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'teardown'
@@ -94,12 +154,17 @@ jobs:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1'
+        uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ env.PROJECT_ID }}
 
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin
+
       - name: Get GKE credentials
         run: |
+          export USE_GKE_GCLOUD_AUTH_PLUGIN=True
           gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} --zone ${{ env.REGION }}
 
       - name: Delete Kubernetes resources
