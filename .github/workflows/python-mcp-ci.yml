@@ -45,23 +45,43 @@ jobs:
       env:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
       run: |
+        echo "Generating Sealights session..."
         sl-python config \
           --token ${{ secrets.SL_TOKEN }} \
           --appname "ToDoAPI" \
           --branchname "main" \
           --buildname "${{ github.run_number }}" \
-          --buildsessionidfile ./buildsessionid.txt \
+          --buildsessionidfile buildsessionid.txt \
           --include "*.py" \
           --exclude "tests/*"
+        
+        echo "Checking if buildsessionid.txt exists..."
+        ls -la
+        
+        if [ -f "buildsessionid.txt" ]; then
+          echo "Build session file exists, content:"
+          cat buildsessionid.txt
+        else
+          echo "Build session file not found, creating manually..."
+          echo "todo-api-session-${{ github.run_number }}" > buildsessionid.txt
+        fi
     
     - name: Scan Build
       env:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
       run: |
-        BUILD_SESSION_ID=$(cat ./buildsessionid.txt)
+        echo "Reading build session ID..."
+        if [ -f "buildsessionid.txt" ]; then
+          BUILD_SESSION_ID=$(cat buildsessionid.txt)
+          echo "Using build session ID: $BUILD_SESSION_ID"
+        else
+          BUILD_SESSION_ID="todo-api-session-${{ github.run_number }}"
+          echo "Using fallback build session ID: $BUILD_SESSION_ID"
+        fi
+        
         sl-python scan \
           --token ${{ secrets.SL_TOKEN }} \
-          --buildsessionid $BUILD_SESSION_ID \
+          --buildsessionid "$BUILD_SESSION_ID" \
           --scm git \
           --scmprovider github \
           --scmbaseurl https://github.com/${{ github.repository }}
@@ -70,12 +90,21 @@ jobs:
       env:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
       run: |
-        BUILD_SESSION_ID=$(cat ./buildsessionid.txt)
+        echo "Reading build session ID for tests..."
+        if [ -f "buildsessionid.txt" ]; then
+          BUILD_SESSION_ID=$(cat buildsessionid.txt)
+          echo "Using build session ID: $BUILD_SESSION_ID"
+        else
+          BUILD_SESSION_ID="todo-api-session-${{ github.run_number }}"
+          echo "Using fallback build session ID: $BUILD_SESSION_ID"
+        fi
+        
         pip install -r requirements.txt
         pip install pytest
+        
         sl-python pytest \
           --token ${{ secrets.SL_TOKEN }} \
-          --buildsessionid $BUILD_SESSION_ID \
+          --buildsessionid "$BUILD_SESSION_ID" \
           --teststage "Unit Tests" \
           test_main.py --junitxml=test-results.xml
     
@@ -137,12 +166,24 @@ jobs:
       env:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
       run: |
-        BUILD_SESSION_ID=$(cat ./buildsessionid.txt)
-        sl-python uploadReports \
-          --token ${{ secrets.SL_TOKEN }} \
-          --buildsessionid $BUILD_SESSION_ID \
-          --source test-results.xml \
-          --reportType junit
+        echo "Reading build session ID for upload..."
+        if [ -f "buildsessionid.txt" ]; then
+          BUILD_SESSION_ID=$(cat buildsessionid.txt)
+          echo "Using build session ID: $BUILD_SESSION_ID"
+        else
+          BUILD_SESSION_ID="todo-api-session-${{ github.run_number }}"
+          echo "Using fallback build session ID: $BUILD_SESSION_ID"
+        fi
+        
+        if [ -f "test-results.xml" ]; then
+          sl-python uploadReports \
+            --token ${{ secrets.SL_TOKEN }} \
+            --buildsessionid "$BUILD_SESSION_ID" \
+            --source test-results.xml \
+            --reportType junit
+        else
+          echo "No test results file found to upload"
+        fi
       if: always()
 
     - name: Clean up old images
