@@ -43,34 +43,41 @@ jobs:
     
     - name: Generate Session ID
       env:
-        SL_TOKEN: ${{ secrets.SL_TOKEN }}  # ✅ Correctly using GitHub secret
-        SL_APP_NAME: ToDoAPI
-        SL_BRANCH_NAME: main
-        SL_BUILD_NAME: ${{ github.run_number }}
-        SL_WORKSPACE_PATH: .
-        SL_INCLUDE: "*.py"
-        SL_EXCLUDE: "tests/*"
-        SL_BUILDSESSIONID: todo-api-session-${{ github.run_number }}
-      run: sl-python config
+        SL_TOKEN: ${{ secrets.SL_TOKEN }}
+      run: |
+        sl-python config \
+          --token ${{ secrets.SL_TOKEN }} \
+          --appname "ToDoAPI" \
+          --branchname "main" \
+          --buildname "${{ github.run_number }}" \
+          --buildsessionidfile ./buildsessionid.txt \
+          --include "*.py" \
+          --exclude "tests/*"
     
     - name: Scan Build
       env:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
-        SL_BUILDSESSIONID: todo-api-session-${{ github.run_number }}
-        SL_SCM: git
-        SL_SCMPROVIDER: github
-        SL_SCMBASEURL: https://github.com/${{ github.repository }}
-      run: sl-python scan
+      run: |
+        BUILD_SESSION_ID=$(cat ./buildsessionid.txt)
+        sl-python scan \
+          --token ${{ secrets.SL_TOKEN }} \
+          --buildsessionid $BUILD_SESSION_ID \
+          --scm git \
+          --scmprovider github \
+          --scmbaseurl https://github.com/${{ github.repository }}
     
     - name: Run Tests with Sealights
       env:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
-        SL_BUILDSESSIONID: todo-api-session-${{ github.run_number }}
-        SL_TEST_STAGE: "Unit Tests"
       run: |
+        BUILD_SESSION_ID=$(cat ./buildsessionid.txt)
         pip install -r requirements.txt
         pip install pytest
-        sl-python pytest test_main.py --junitxml=test-results.xml
+        sl-python pytest \
+          --token ${{ secrets.SL_TOKEN }} \
+          --buildsessionid $BUILD_SESSION_ID \
+          --teststage "Unit Tests" \
+          test_main.py --junitxml=test-results.xml
     
     - id: 'auth'
       name: 'Authenticate to Google Cloud'
@@ -129,9 +136,13 @@ jobs:
     - name: Upload Test Results
       env:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
-        SL_BUILDSESSIONID: todo-api-session-${{ github.run_number }}
       run: |
-        sl-python uploadReports --source=test-results.xml --reportType=junit
+        BUILD_SESSION_ID=$(cat ./buildsessionid.txt)
+        sl-python uploadReports \
+          --token ${{ secrets.SL_TOKEN }} \
+          --buildsessionid $BUILD_SESSION_ID \
+          --source test-results.xml \
+          --reportType junit
       if: always()
 
     - name: Clean up old images
