@@ -51,19 +51,18 @@ jobs:
           --appname "ToDoAPI" \
           --branchname "main" \
           --buildname "${{ github.run_number }}" \
-          --buildsessionidfile buildsessionid.txt \
+          --buildSessionIdfile buildSessionId.txt \
           --include "*.py" \
           --exclude "tests/*"
         
-        echo "Checking if buildsessionid.txt exists..."
+        echo "Checking if buildSessionId.txt exists..."
         ls -la
         
-        if [ -f "buildsessionid.txt" ]; then
+        if [ -f "buildSessionId.txt" ]; then
           echo "Build session file exists, content:"
-          cat buildsessionid.txt
+          cat buildSessionId.txt
         else
-          echo "Build session file not found, creating manually..."
-          echo "todo-api-session-${{ github.run_number }}" > buildsessionid.txt
+          echo "ERROR Build session file not found, creating manually..."
         fi
     
     - name: Scan Build
@@ -71,8 +70,8 @@ jobs:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
       run: |
         echo "Reading build session ID..."
-        if [ -f "buildsessionid.txt" ]; then
-          BUILD_SESSION_ID=$(cat buildsessionid.txt)
+        if [ -f "buildSessionId.txt" ]; then
+          BUILD_SESSION_ID=$(cat buildSessionId.txt)
           echo "Using build session ID: $BUILD_SESSION_ID"
         else
           BUILD_SESSION_ID="todo-api-session-${{ github.run_number }}"
@@ -81,7 +80,7 @@ jobs:
         
         sl-python scan \
           --token ${{ secrets.SL_TOKEN }} \
-          --buildsessionid "$BUILD_SESSION_ID" \
+          --buildSessionId "$BUILD_SESSION_ID" \
           --scm git \
           --scmprovider github \
           --scmbaseurl https://github.com/${{ github.repository }}
@@ -91,8 +90,8 @@ jobs:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
       run: |
         echo "Reading build session ID for tests..."
-        if [ -f "buildsessionid.txt" ]; then
-          BUILD_SESSION_ID=$(cat buildsessionid.txt)
+        if [ -f "buildSessionId.txt" ]; then
+          BUILD_SESSION_ID=$(cat buildSessionId.txt)
           echo "Using build session ID: $BUILD_SESSION_ID"
         else
           BUILD_SESSION_ID="todo-api-session-${{ github.run_number }}"
@@ -104,7 +103,7 @@ jobs:
         
         sl-python pytest \
           --token ${{ secrets.SL_TOKEN }} \
-          --buildsessionid "$BUILD_SESSION_ID" \
+          --buildSessionId "$BUILD_SESSION_ID" \
           --teststage "Unit Tests" \
           test_main.py --junitxml=test-results.xml
     
@@ -167,8 +166,8 @@ jobs:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
       run: |
         echo "Reading build session ID for upload..."
-        if [ -f "buildsessionid.txt" ]; then
-          BUILD_SESSION_ID=$(cat buildsessionid.txt)
+        if [ -f "buildSessionId.txt" ]; then
+          BUILD_SESSION_ID=$(cat buildSessionId.txt)
           echo "Using build session ID: $BUILD_SESSION_ID"
         else
           BUILD_SESSION_ID="todo-api-session-${{ github.run_number }}"
@@ -178,7 +177,7 @@ jobs:
         if [ -f "test-results.xml" ]; then
           sl-python uploadReports \
             --token ${{ secrets.SL_TOKEN }} \
-            --buildsessionid "$BUILD_SESSION_ID" \
+            --buildSessionId "$BUILD_SESSION_ID" \
             --source test-results.xml \
             --reportType junit
         else
