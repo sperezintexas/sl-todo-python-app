@@ -53,10 +53,6 @@ jobs:
           --buildname "${{ github.run_number }}" \
           --buildSessionIdfile buildSessionId.txt \
           --include "src/**/*.py" \
-          --include "src/app/main.py" \
-          --include "src/app/models/*.py" \
-          --include "src/app/routers/*.py" \
-          --include "src/app/services/*.py" \
           --exclude "test_*.py" \
           --exclude "tests/**/*.py"
         
