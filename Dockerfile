@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Run tests
-RUN pytest
+RUN pytest tests/
 
 # Stage 2: Production stage
 FROM python:3.11-slim
@@ -37,5 +37,9 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Copy source code
+COPY src/ /app/src/
+WORKDIR /app
+
+# Run the application
+CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -52,8 +52,9 @@ jobs:
           --branchname "main" \
           --buildname "${{ github.run_number }}" \
           --buildSessionIdfile buildSessionId.txt \
-          --include "*.py" \
-          --exclude "test_*.py"
+          --include "src/**/*.py" \
+          --exclude "test_*.py" \
+          --exclude "tests/**/*.py"
         
         echo "Checking if buildSessionId.txt exists..."
         ls -la
@@ -88,6 +89,7 @@ jobs:
     - name: Run Tests with Sealights
       env:
         SL_TOKEN: ${{ secrets.SL_TOKEN }}
+        PYTHONPATH: ${{ github.workspace }}
       run: |
         echo "Reading build session ID for tests..."
         if [ -f "buildSessionId.txt" ]; then
@@ -100,6 +102,9 @@ jobs:
         
         pip install -r requirements.txt
         pip install pytest
+        
+        # Set PYTHONPATH to include the project root for imports
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         
         sl-python pytest \
           --token ${{ secrets.SL_TOKEN }} \
