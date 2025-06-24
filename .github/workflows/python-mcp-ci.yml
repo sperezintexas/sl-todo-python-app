@@ -52,9 +52,8 @@ jobs:
           --branchname "main" \
           --buildname "${{ github.run_number }}" \
           --buildSessionIdfile buildSessionId.txt \
-          --include "src/**/*.py" \
-          --exclude "test_*.py" \
-          --exclude "tests/**/*.py"
+          --include "src" \
+          --exclude "tests"
         
         echo "Checking if buildSessionId.txt exists..."
         ls -la
