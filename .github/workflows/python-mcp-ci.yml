@@ -47,10 +47,6 @@ jobs:
         pwd
         echo "Files in current directory:"
         ls -la
-        echo "Files in src directory:"
-        find src -name "*.py" -type f || echo "No Python files found in src"
-        echo "Files in tests directory:"
-        find tests -name "*.py" -type f || echo "No Python files found in tests"
         echo "All Python files in project:"
         find . -name "*.py" -type f | head -20
     
@@ -65,9 +61,11 @@ jobs:
           --branchname "main" \
           --buildname "${{ github.run_number }}" \
           --buildSessionIdfile buildSessionId.txt \
-          --include "src/app/**/*.py" \
+          --include "*.py" \
+          --include "app/**/*.py" \
           --exclude "tests/**/*.py" \
-          --exclude "__pycache__"
+          --exclude "__pycache__" \
+          --exclude "test_*.py"
         
         echo "Checking if buildSessionId.txt exists..."
         ls -la
@@ -123,7 +121,7 @@ jobs:
           --token ${{ secrets.SL_TOKEN }} \
           --buildSessionId "$BUILD_SESSION_ID" \
           --teststage "Unit Tests" \
-          tests/ --junitxml=test
+          tests/ --junitxml=test-results.xml
 
     - id: 'auth'
       name: 'Authenticate to Google Cloud'

@@ -37,9 +37,5 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Copy source code
-COPY src/ /app/src/
-WORKDIR /app
-
-# Run the application
-CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application with the new server.py file
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
